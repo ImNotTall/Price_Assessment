@@ -1,6 +1,5 @@
 import pandas
 from tabulate import tabulate
-import re
 
 
 def make_statement(statement, decoration):
@@ -33,13 +32,25 @@ You will be asked a series of questions:
 
 The recipe name.
 Number of servings.
+What mode you would like to select:
+
+Freestyle:
+Freestyle will allow you to enter one big line of input data. However each variable must be in order or the code will not accept the answer!
+This mode is recommend to experts who know what their doing or to people who want to be quick.
+
+step-by-step:
+Step-by-step is recommend to people who are using the program for the first time or have difficulty with computers.
+This mode will ask questions in order. It does not allow you to enter your response all at once.
+Questions asked in step-by-step include:
+
 Name of ingredient.
 The appropriate unit.
 How many of that particular ingredient for the recipe.
 
-The code will repeat itself until you enter the break key: "xxx" .
+Both modes will repeat itself until you enter the break key: "xxx" .
 
-The code will then ask for how many bought and the cost of all the ingredients entered.
+Only 'Step-by-step' will ask for how many bought and the cost of all the ingredients entered.
+If your using 'Freestyle' you will need to enter how many brought and the cost at the same time as every other variable.
 
 Once all ingredients have been inputted, the code will display in a graph the results.
 
@@ -91,66 +102,6 @@ def num_check(question, num_type="float", exit_code=None):
             print(error)
 
 
-def get_expenses(exp_type, how_many=1):
-    all_items = []
-    all_amounts = []
-    all_dollar_per_item = []
-
-    expenses_dict = {
-        "Item": all_items,
-        "Amount": all_amounts,
-        "$ / Item": all_dollar_per_item
-    }
-
-    amount = how_many
-    how_much_question = "How much? "
-
-    while True:
-        item_name = not_blank("Item Name: ")
-
-        if exp_type == "variable" and item_name == "xxx" and len(all_items) == 0:
-            print("Oops - you have not entered anything. You need at least one item")
-            continue
-
-        elif item_name == "xxx":
-            break
-
-        if exp_type == "variable":
-
-            amount = num_check(f"How many <enter for {how_many}>: ",
-                               "integer", "")
-
-            if amount == "":
-                amount = how_many
-
-            how_much_question = "Price for one? $"
-
-        price_for_one = num_check(how_much_question, "float")
-        # cost = amount * price_for_one
-
-        all_items.append(item_name)
-        all_amounts.append(amount)
-        all_dollar_per_item.append(price_for_one)
-
-    expense_frame = pandas.DataFrame(expenses_dict)
-
-    expense_frame['Cost'] = expense_frame['Amount'] * expense_frame['$ / Item']
-
-    subtotal = expense_frame['Cost'].sum()
-
-    add_dollars = ['Amount', '$ / Item', 'Cost']
-    for var_item in add_dollars:
-        expense_frame[var_item] = expense_frame[var_item].apply(currency)
-
-    if exp_type == "variable":
-        expense_string = tabulate(expense_frame, headers='keys',
-                                  tablefmt='psql', showindex=False)
-    else:
-        expense_string = tabulate(expense_frame[['Item', 'Cost']], headers='keys',
-                                  tablefmt='psql', showindex=False)
-    return expense_string, subtotal
-
-
 def unit_amount(question, num_letters=1):
     # Lists of appropriate units
     unit_list = ['grams', 'kilograms', 'litres', 'millilitres', 'drops']
@@ -182,7 +133,6 @@ def unit_amount(question, num_letters=1):
 def currency(x):
     return "${:.2f}".format(x)
 
-# TODO Talk about how first trial is making the entire code about step-by-step, second trial is just freestyle and third trial is hybrid
 def mode_type(question):
     while True:
         response = input(question).lower()
