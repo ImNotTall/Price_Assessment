@@ -1,3 +1,6 @@
+import pandas
+from tabulate import tabulate
+
 def mode_type(question):
     while True:
         response = input(question).lower()
@@ -94,6 +97,15 @@ brought_total = []
 price = []
 making_cost = []
 
+final_dict = {
+    "Ingredient": ingredients,
+    "Amount Needed": needed,
+    "Amount Brought": brought_total,
+    "Unit": unit,
+    "Price": price,
+    # "Cost to Make": making_cost
+}
+
 if what_mode == "freestyle":
     while True:
         freestyle_response = not_blank(
@@ -146,4 +158,12 @@ elif what_mode == "step-by-step":
         brought_cost = num_check(f"How much did it cost you to buy {ingredient}? $")
         price.append(brought_cost)
         brought_total.append(brought_amount)
+
+final_frame = pandas.DataFrame(final_dict)
+
+recipe_results = tabulate(final_frame[['Ingredient', 'Amount Needed', 'Amount Brought', 'Unit', 'Price',
+                                       ]], headers='keys',
+                          tablefmt='psql', showindex=False)
+
+print(f"{recipe_results} \n")
 

@@ -3,7 +3,7 @@ from tabulate import tabulate
 
 
 def make_statement(statement, decoration):
-    # Emphasises headings by adding decoration at the start and end
+    """ Emphasises headings by adding decoration at the start and end """
 
     return f"{decoration * 3} {statement} {decoration * 3}"
 
@@ -60,7 +60,7 @@ At the bottom of the page, the cost per serving can be found as well as the tota
 
 
 def not_blank(question):
-    # Checks that a user response is not blank
+    """ Checks that a user response is not blank """
 
     while True:
         response = input(question)
@@ -72,7 +72,7 @@ def not_blank(question):
 
 
 def num_check(question, num_type="float", exit_code=None):
-    # Checks if the user has entered more than 0
+    """" Checks if the user has entered more than 0 """
 
     if num_type == "float":
         error = "Oops - Please enter an integer more than zero."
@@ -100,7 +100,6 @@ def num_check(question, num_type="float", exit_code=None):
 
         except ValueError:
             print(error)
-
 
 def unit_amount(question, num_letters=1):
     # Lists of appropriate units
@@ -134,6 +133,7 @@ def currency(x):
     return "${:.2f}".format(x)
 
 def mode_type(question):
+    # Asks user what mode they would like to use
     while True:
         response = input(question).lower()
         if response in ["fs", "freestyle", "f"]:
@@ -143,7 +143,41 @@ def mode_type(question):
         elif response == "xxx":
             return "exit"
         else:
+            # If user enters invalid input the code will ask again
             print("Please enter 'Freestyle' or 'Step-by-step' (or 'xxx' to exit).")
+
+def convert_units(needed_amt, unit_needed, unit_brought):
+    """" abbreviations used for conversion """
+    abbreviations = {
+        "g": "grams",
+        "kg": "kilograms",
+        "ml": "millilitres",
+        "l": "litres"
+    }
+
+    unit_needed = abbreviations.get(unit_needed.lower(), unit_needed.lower())
+    unit_brought = abbreviations.get(unit_brought.lower(), unit_brought.lower())
+
+    # Conversions
+    conversions = {
+        ("grams", "kilograms"): needed_amt / 1000,
+        ("kilograms", "grams"): needed_amt * 1000,
+        ("millilitres", "litres"): needed_amt / 1000,
+        ("litres", "millilitres"): needed_amt * 1000
+    }
+
+    if unit_needed == unit_brought:
+        return needed_amt
+    elif (unit_needed, unit_brought) in conversions:
+        return conversions[(unit_needed, unit_brought)]
+    elif (unit_brought, unit_needed) in conversions:
+        # Convert to match unit_brought regardless of input order
+        return conversions[(unit_brought, unit_needed)]
+    # User must input a response that is able to be converted from unit to unit
+    else:
+        print(f"⚠️ Units '{unit_needed}' and '{unit_brought}' are not compatible. No conversion applied.")
+        return needed_amt
+
 
 fixed_subtotal = 0
 fixed_panda_string = ""
@@ -185,45 +219,63 @@ final_dict = {
     # "Cost to Make": making_cost
 }
 
+# If the user has selected "Freestyle" mode:
 if what_mode == "freestyle":
     while True:
         freestyle_response = not_blank(
             "Enter response as: 'Name' 'Unit' 'Amount Brought' 'Amount Needed' 'Cost' (or 'xxx' to exit): "
         ).split()
 
+        # If the user types "xxx" the code will break
         if freestyle_response[0].lower() == "xxx":
             break
 
+        # Must be exactly 5 responses in line
         if len(freestyle_response) != 5:
             print("Please enter exactly 5 values: 'Name' 'Unit' 'Amount Brought' 'Amount_Needed' 'Cost' ")
             continue
 
+        # Makes user input response in order
         try:
-            ingredient, unit_value, brought_amt, needed_amt, cost = freestyle_response
+            ingredient, unit_needed, brought_amt, needed_amt, cost = freestyle_response
+            brought_amt = float(brought_amt)
+            needed_amt = float(needed_amt)
+            cost = float(cost)
+
+            # Asks user the ingredient they brought the item in so the code can convert the item to another unit
+            unit_brought = input(f"What unit did you buy {ingredient} in? ").lower().strip()
+            adjusted_needed = convert_units(needed_amt, unit_needed, unit_brought)
+
+            # Makes sure 'Amount Brought', 'Amount_Needed', and 'Cost' are numbers
             ingredients.append(ingredient)
-            unit.append(unit_value)
-            brought_total.append(float(brought_amt))
-            needed.append(float(needed_amt))
-            price.append(float(cost))
+            unit.append(unit_brought)
+            brought_total.append(brought_amt)
+            needed.append(adjusted_needed)
+            price.append(cost)
         except ValueError:
             print("Please make sure that 'Amount Brought', 'Amount_Needed', and 'Cost' are numbers.")
             continue
 
+# If the user has selected "Step-by-step" mode:
 elif what_mode == "step-by-step":
     while True:
         print()
+        # If the user type "xxx" the code will break and continue to the next section
         ingredient = not_blank("Name of ingredient? (Type 'xxx' to stop) ").strip()
 
         if ingredient.lower() == "xxx":
             break
         ingredients.append(ingredient)
 
+        # Asks for appropriate unit from a list
         unit_value = unit_amount("What is the appropriate unit? ")
         unit.append(unit_value)
 
+        # If the food item is an item that doesn't have a unit (E.g. Eggs) it will ignore the "Units" part of the question
         if unit_value == "":
             food_amount = num_check(f"How many {ingredient}(s) do you need for the recipe? ")
             needed.append(food_amount)
+        # Asks for the amount of ingredients for recipe
         else:
             food_amount = num_check(f"How many {unit_value} of {ingredient}(s) do you need for the recipe? ")
             needed.append(food_amount)
@@ -232,15 +284,57 @@ elif what_mode == "step-by-step":
     print(make_statement("Let's get the cost", '='))
     print()
 
-    for ingredient in ingredients:
+    for i, ingredient in enumerate(ingredients):
         brought_amount = num_check(f"How many {ingredient}(s) did you buy in total? ")
+        unit_brought = input(f"What unit did you buy {ingredient} in? ").lower().strip()
         brought_cost = num_check(f"How much did it cost you to buy {ingredient}? $")
+
+        # Convert the amount needed to match the unit bought
+        adjusted_amt = convert_units(needed[i], unit[i], unit_brought)
+        needed[i] = adjusted_amt
+        unit[i] = unit_brought  # Override the unit to match
+
         price.append(brought_cost)
         brought_total.append(brought_amount)
 
 #  Maths for displaying data
 total_cost_brought = sum(cost for _, cost in brought)
 
+# Maths for displaying data with unit conversion
+conversion_table = {
+    ("grams", "kilograms"): lambda x: x / 1000,
+    ("kilograms", "grams"): lambda x: x / 1000,
+    ("millilitres", "litres"): lambda x: x / 1000,
+    ("litres", "millilitres"): lambda x: x / 1000,
+}
+
+# Adjust needed values if units mismatch but are convertible
+adjusted_needed = []
+for i in range(len(ingredients)):
+    unit_needed = unit[i]
+    unit_brought = unit[i]  # same unit in your current structure
+
+    # Get values
+    amt_needed = needed[i]
+    amt_brought = brought_total[i]
+
+    # Check if a conversion is needed
+    conversion_key = (unit_needed, unit_brought)
+    reverse_key = (unit_brought, unit_needed)
+
+    # Converts units into appropriate units
+    if unit_needed != unit_brought:
+        if conversion_key in conversion_table:
+            amt_needed = conversion_table[conversion_key](amt_needed)
+        elif reverse_key in conversion_table:
+            amt_needed = conversion_table[reverse_key](amt_needed)
+        else:
+            print(f"Units for {ingredients[i]} cannot be converted. Double check.")
+
+    adjusted_needed.append(amt_needed)
+
+# Use adjusted values in calculations
+final_dict["Adjusted Needed"] = adjusted_needed
 final_frame = pandas.DataFrame(final_dict)
 
 final_frame['Cost to Make'] = final_frame['Price'] / final_frame['Amount Brought'] * final_frame['Amount Needed']
@@ -263,8 +357,7 @@ print()
 print(make_statement(f"{recipe_name}", "="))
 print(f"Servings: {servings}")
 print()
-# TODO: Remove "\n" for trialling. Add back after screenshotted
 print(f"The total cost of items brought: \n{recipe_results}")
 print()
-print(f"Total: {absolute_total:.2f}")
+print(f"Total: ${absolute_total:.2f}")
 print(f"The total cost per serving: ${cost_per_serving}")
